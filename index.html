@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Jurnal Guru - Design By Wiyanto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        
+        @media print {
+            @page { size: A4 landscape; margin: 0.8cm; }
+            .no-print { display: none !important; }
+            body { background: white !important; overflow: visible !important; }
+            #docContent { box-shadow: none !important; border: none !important; width: 100% !important; padding: 0 !important; }
+            table { border-collapse: collapse !important; width: 100% !important; table-layout: fixed !important; }
+            th, td { border: 0.5pt solid #000 !important; font-size: 8pt !important; padding: 5px !important; color: #000 !important; }
+        }
+
+        #docContent {
+            width: 1120px; min-height: 790px; background: white;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            margin: 0 auto; padding: 50px; border: 1px solid #e2e8f0; position: relative;
+        }
+        .wrap-text { word-break: break-word; overflow-wrap: break-word; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .preview-container { overflow-x: auto; padding-bottom: 2rem; }
+    </style>
+</head>
+<body class="lg:h-screen lg:overflow-hidden">
+
+    <!-- OVERLAY LOGIN -->
+    <div id="loginOverlay" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md text-center">
+            <h2 class="text-2xl font-black text-slate-900 mb-2">PORTAL JURNAL GURU</h2>
+            <p class="text-slate-500 text-sm mb-6">Silakan masukkan Nama Lengkap Anda untuk mengakses Dashboard Personal.</p>
+            <input type="text" id="authUserName" placeholder="Nama Lengkap Guru" class="w-full p-4 border-2 border-slate-100 rounded-xl mb-4 outline-none focus:border-slate-900 transition-all text-center font-bold">
+            <button id="btnLogin" onclick="handleLogin()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-black transition-all">Masuk ke Dashboard</button>
+            <p class="mt-6 text-[10px] text-slate-400 uppercase tracking-widest font-bold">Design By Wiyanto</p>
+        </div>
+    </div>
+
+    <div id="mainApp" class="hidden flex h-full flex-col lg:flex-row">
+        
+        <!-- SIDEBAR -->
+        <aside class="no-print w-full lg:w-[400px] bg-white border-r border-slate-200 flex flex-col h-full shadow-2xl z-20">
+            <div class="p-6 bg-slate-900 text-white flex justify-between items-start">
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight" id="displayGuruName">Jurnal Guru</h1>
+                    <p class="text-[10px] text-slate-400 font-medium tracking-widest uppercase">Dashboard Personal</p>
+                </div>
+                <button onclick="handleLogout()" class="text-[10px] bg-red-500/20 text-red-400 px-3 py-1 rounded-full font-bold hover:bg-red-500 hover:text-white transition-all">KELUAR</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto custom-scroll p-5 space-y-5">
+                <form id="entryForm" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tanggal</label>
+                            <input type="date" id="tgl" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-900 transition-all">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">PB Ke</label>
+                            <input type="text" id="pbKe" placeholder="1" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-900 transition-all">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mapel / Tema</label>
+                        <input type="text" id="mapel" placeholder="MTK / Tema 1" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">KD</label><textarea id="kd" rows="2" class="w-full p-2 bg-slate-50 border rounded-lg"></textarea></div>
+                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Materi</label><textarea id="materi" rows="2" class="w-full p-2 bg-slate-50 border rounded-lg"></textarea></div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Kegiatan Pembelajaran</label>
+                        <textarea id="kegiatan" rows="2" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg"></textarea>
+                    </div>
+                    <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 grid grid-cols-3 gap-2">
+                        <div class="col-span-3 text-[9px] font-bold text-indigo-700 uppercase">Absensi (S/I/A)</div>
+                        <input type="number" id="absS" value="0" class="p-2 border rounded text-sm outline-none">
+                        <input type="number" id="absI" value="0" class="p-2 border rounded text-sm outline-none">
+                        <input type="number" id="absA" value="0" class="p-2 border rounded text-sm outline-none">
+                    </div>
+                    <button type="submit" id="btnSave" class="w-full bg-slate-900 hover:bg-black text-white font-bold py-3.5 rounded-xl shadow-lg transition-all">Simpan Jurnal</button>
+                </form>
+
+                <div class="space-y-4 pt-4 text-xs border-t">
+                    <h3 class="font-bold text-slate-400 uppercase tracking-[0.2em] text-[9px]">Konfigurasi Sekolah</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="text" id="inKelas" placeholder="Kelas" oninput="saveConfig()" class="p-2.5 border rounded-lg">
+                        <input type="text" id="inSemester" placeholder="Semester" oninput="saveConfig()" class="p-2.5 border rounded-lg">
+                    </div>
+                    <input type="text" id="nmKepsek" placeholder="Nama Kepala Sekolah" oninput="saveConfig()" class="w-full p-2.5 border rounded-lg">
+                    
+                    <div class="grid grid-cols-1 gap-3">
+                        <button onclick="window.print()" class="bg-white border-2 border-slate-900 text-slate-900 font-bold py-3 rounded-xl flex items-center justify-center gap-2">Cetak Laporan</button>
+                        <button onclick="exportToWord()" class="bg-indigo-600 text-white font-bold py-3 rounded-xl">Ekspor ke Word</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- PREVIEW -->
+        <main class="flex-1 p-6 lg:p-10 overflow-y-auto custom-scroll">
+            <div class="preview-container">
+                <div id="docContent" class="wrap-text">
+                    <div class="no-print absolute top-4 right-6 text-[10px] text-slate-300 font-bold uppercase tracking-widest">Design By Wiyanto</div>
+                    <div class="text-center mb-8">
+                        <h2 class="text-2xl font-extrabold uppercase tracking-tight">Jurnal Harian Kelas</h2>
+                        <h3 class="text-xl font-bold uppercase text-slate-700">Pelaksanaan Pembelajaran</h3>
+                        <div class="w-48 h-1.5 bg-slate-900 mx-auto mt-2 rounded-full"></div>
+                    </div>
+                    <div class="flex justify-between items-end mb-4 text-[12px] font-bold">
+                        <div>
+                            <p>Kelas / Semester : <span id="labKelas" class="underline">...</span> / <span id="labSemester" class="underline">...</span></p>
+                            <p>Tahun Pelajaran : 2025 / 2026</p>
+                        </div>
+                    </div>
+                    <table class="w-full border-collapse border border-black table-fixed text-[10px]">
+                        <thead>
+                            <tr class="bg-slate-900 text-white">
+                                <th rowspan="2" class="border border-black p-2 w-[80px]">Hari / Tgl</th>
+                                <th rowspan="2" class="border border-black p-2 w-[110px]">Mapel/Tema</th>
+                                <th rowspan="2" class="border border-black p-2 w-[40px]">PB</th>
+                                <th rowspan="2" class="border border-black p-2 w-[100px]">KD</th>
+                                <th rowspan="2" class="border border-black p-2 w-[110px]">Materi</th>
+                                <th rowspan="2" class="border border-black p-2">Kegiatan Pembelajaran</th>
+                                <th colspan="3" class="border border-black p-1 w-[80px]">Absen</th>
+                                <th rowspan="2" class="border border-black p-1 w-[90px]">Catatan</th>
+                                <th rowspan="2" class="no-print border border-black p-1 w-[35px]"></th>
+                            </tr>
+                            <tr class="bg-slate-100 text-slate-900">
+                                <th class="border border-black p-1 w-[26px]">S</th>
+                                <th class="border border-black p-1 w-[26px]">I</th>
+                                <th class="border border-black p-1 w-[26px]">A</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mainTable"></tbody>
+                    </table>
+                    <div class="grid grid-cols-2 mt-12 text-[12px] font-bold">
+                        <div class="text-center">
+                            <p class="mb-24">Mengetahui,<br>Kepala Sekolah</p>
+                            <p class="font-extrabold underline uppercase" id="signKep">...</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="mb-24" id="signTgl">..., ...<br>Guru Kelas</p>
+                            <p class="font-extrabold underline uppercase" id="signGur">...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- FIREBASE CONFIG ---
+        const firebaseConfig = JSON.parse(__firebase_config);
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'wiyanto-jurnal-v4';
+
+        let currentUser = null;
+        let journals = [];
+        let authReady = false;
+
+        // --- AUTH LOGIC ---
+        async function handleLogin() {
+            const name = document.getElementById('authUserName').value.trim();
+            if (!name) return;
+            
+            const btn = document.getElementById('btnLogin');
+            btn.disabled = true;
+            btn.textContent = 'Menghubungkan...';
+
+            try {
+                // Rule 3: Auth Before Queries
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await auth.signInWithCustomToken(__initial_auth_token);
+                } else {
+                    await auth.signInAnonymously();
+                }
+                
+                currentUser = name;
+                authReady = true;
+                localStorage.setItem('jurnal_wiyanto_user', name);
+                
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                document.getElementById('displayGuruName').textContent = name;
+                
+                await loadPersonalData();
+            } catch (err) {
+                console.error("Login Error:", err);
+                alert("Gagal masuk. Silakan coba lagi.");
+                btn.disabled = false;
+                btn.textContent = 'Masuk ke Dashboard';
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('jurnal_wiyanto_user');
+            auth.signOut();
+            window.location.reload();
+        }
+
+        // --- FIRESTORE LOGIC ---
+        async function loadPersonalData() {
+            if (!currentUser || !authReady) return;
+            
+            const uid = auth.currentUser.uid;
+            
+            // Rule 1: Strict Paths -> /artifacts/{appId}/users/{userId}/{collectionName}
+            // Load Konfigurasi
+            const configRef = db.doc(`artifacts/${appId}/users/${uid}/config/main`);
+            try {
+                const configSnap = await configRef.get();
+                if (configSnap.exists) {
+                    const data = configSnap.data();
+                    document.getElementById('inKelas').value = data.kelas || '';
+                    document.getElementById('inSemester').value = data.semester || '';
+                    document.getElementById('nmKepsek').value = data.kepsek || '';
+                    applyConfig(data);
+                } else {
+                    applyConfig({});
+                }
+            } catch (e) {
+                console.error("Config load error:", e);
+            }
+
+            // Load Jurnal
+            const journalRef = db.collection(`artifacts/${appId}/users/${uid}/journals`);
+            // Rule 2: No Complex Queries (Simple collection fetch)
+            journalRef.onSnapshot((querySnapshot) => {
+                journals = [];
+                querySnapshot.forEach((doc) => {
+                    journals.push({ id: doc.id, ...doc.data() });
+                });
+                render();
+            }, (err) => {
+                console.error("Firestore Permission/Fetch Error:", err);
+            });
+        }
+
+        async function saveConfig() {
+            if (!currentUser || !authReady) return;
+            const uid = auth.currentUser.uid;
+            const data = {
+                kelas: document.getElementById('inKelas').value,
+                semester: document.getElementById('inSemester').value,
+                kepsek: document.getElementById('nmKepsek').value,
+                teacherName: currentUser // Simpan nama tampilan juga
+            };
+            await db.doc(`artifacts/${appId}/users/${uid}/config/main`).set(data);
+            applyConfig(data);
+        }
+
+        function applyConfig(data) {
+            document.getElementById('labKelas').textContent = data.kelas || '...';
+            document.getElementById('labSemester').textContent = data.semester || '...';
+            document.getElementById('signKep').textContent = data.kepsek || '..................................';
+            document.getElementById('signGur').textContent = currentUser;
+            const skrg = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            document.getElementById('signTgl').innerHTML = `Jakarta, ${skrg}<br>Guru Kelas`;
+        }
+
+        document.getElementById('entryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser || !authReady) return;
+            const uid = auth.currentUser.uid;
+            
+            const btn = document.getElementById('btnSave');
+            btn.disabled = true;
+            btn.textContent = 'Menyimpan...';
+
+            const payload = {
+                tgl: document.getElementById('tgl').value,
+                pbKe: document.getElementById('pbKe').value,
+                mapel: document.getElementById('mapel').value,
+                kd: document.getElementById('kd').value,
+                materi: document.getElementById('materi').value,
+                kegiatan: document.getElementById('kegiatan').value,
+                absS: document.getElementById('absS').value || 0,
+                absI: document.getElementById('absI').value || 0,
+                absA: document.getElementById('absA').value || 0,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                await db.collection(`artifacts/${appId}/users/${uid}/journals`).add(payload);
+                document.getElementById('entryForm').reset();
+                document.getElementById('tgl').value = payload.tgl;
+            } catch (e) {
+                console.error("Save error", e);
+                alert("Gagal menyimpan data ke cloud.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Simpan Jurnal';
+            }
+        });
+
+        function render() {
+            const container = document.getElementById('mainTable');
+            container.innerHTML = '';
+            // Sort in JS (Rule 2: avoid orderBy in Firestore query)
+            journals.sort((a, b) => new Date(a.tgl) - new Date(b.tgl));
+
+            if (journals.length === 0) {
+                container.innerHTML = `<tr><td colspan="11" class="p-16 text-center italic text-slate-400 text-sm">Belum ada jurnal tersimpan di dashboard Anda.</td></tr>`;
+                return;
+            }
+
+            journals.forEach((item) => {
+                const tglStr = new Date(item.tgl).toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: '2-digit' });
+                container.innerHTML += `
+                    <tr>
+                        <td class="border border-black p-2 text-center font-bold">${tglStr}</td>
+                        <td class="border border-black p-2 text-center font-bold text-indigo-700">${item.mapel}</td>
+                        <td class="border border-black p-2 text-center">${item.pbKe}</td>
+                        <td class="border border-black p-2 wrap-text">${item.kd}</td>
+                        <td class="border border-black p-2 wrap-text">${item.materi}</td>
+                        <td class="border border-black p-2 wrap-text leading-tight">${item.kegiatan}</td>
+                        <td class="border border-black p-2 text-center font-bold">${item.absS}</td>
+                        <td class="border border-black p-2 text-center font-bold">${item.absI}</td>
+                        <td class="border border-black p-2 text-center font-bold">${item.absA}</td>
+                        <td class="border border-black p-2 text-center">-</td>
+                        <td class="no-print border border-black p-1 text-center">
+                            <button onclick="del('${item.id}')" class="text-red-400 hover:text-red-600 font-black">×</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function del(id) {
+            if (!authReady) return;
+            const uid = auth.currentUser.uid;
+            if (confirm('Hapus entri jurnal ini dari dashboard personal Anda?')) {
+                await db.doc(`artifacts/${appId}/users/${uid}/journals/${id}`).delete();
+            }
+        }
+
+        function exportToWord() {
+            const html = document.getElementById('docContent').innerHTML;
+            const blob = new Blob(['\ufeff', `<html><head><meta charset='utf-8'><style>@page { size: landscape; } table { border-collapse: collapse; width: 100%; } th, td { border: 1pt solid black; padding: 4pt; font-family: Arial; font-size: 8pt; }</style></head><body>${html}</body></html>`], { type: 'application/msword' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `Jurnal_${currentUser}.doc`;
+            link.click();
+        }
+
+        // Auto-login if session exists
+        const savedUser = localStorage.getItem('jurnal_wiyanto_user');
+        if (savedUser) {
+            document.getElementById('authUserName').value = savedUser;
+            // Kita tetap butuh trigger klik/login untuk memastikan auth state siap
+            handleLogin();
+        }
+    </script>
+</body>
+</html>
